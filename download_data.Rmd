@@ -1,0 +1,72 @@
+---
+title: "Download Walk Roll Map Data"
+output: html_notebook
+---
+
+This file downloads the latest walk, roll, map data (WRM), and saves a copy.
+
+```{r}
+library(utils)
+library(sf)
+library(tidyverse)
+library(lubridate)
+
+# download geojson files
+download.file("https://walkrollmap.org/api/amenity", 
+              "data/amenity.geojson")
+download.file("https://walkrollmap.org/api/hazard", 
+              "data/hazard.geojson")
+download.file("https://walkrollmap.org/api/incident",
+              "data/incident.geojson")
+
+# load to sf
+amenity <- st_read("data/amenity.geojson",
+                   crs = 3857) %>%
+  mutate(amenity_subtype = NA) %>%
+  select(
+    id,
+    date,
+    type,
+    feature_type = amenity_type,
+    feature_subtype = amenity_subtype,
+    description)
+
+hazard <- st_read("data/hazard.geojson",
+                   crs = 3857) %>%
+  select(
+    id,
+    date,
+    type,
+    feature_type = hazard_type,
+    feature_subtype = hazard_subtype,
+    description)
+
+incident <- st_read("data/incident.geojson",
+                   crs = 3857)  %>%
+  select(
+    id,
+    date,
+    type,
+    feature_type = incident_type,
+    feature_subtype = incident_with,
+    description)
+
+wrm_data <- rbind(amenity, hazard, incident)
+
+# clean up
+wrm_data <- wrm_data %>%
+  arrange(id) %>%
+  mutate(date = as.POSIXct(date/1000, origin="1970-01-01 00:00:00")) %>%
+  st_transform(4326)
+
+coordinates <- st_coordinates(wrm_data) %>% data.frame()
+
+wrm_data$lat <- coordinates$Y
+wrm_data$lon <- coordinates$X
+
+
+
+write_csv(wrm_data %>% st_drop_geometry(),
+          "data/wrm.csv")
+
+```

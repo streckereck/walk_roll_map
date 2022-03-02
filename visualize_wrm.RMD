@@ -1,0 +1,621 @@
+---
+title: "Walk Roll Map Visualize"
+---
+
+Visualizations for [Walk Roll Map](https://www.walkrollmap.org/). 
+
+* First draft is for infographics. 
+* Later selected graphs may be added to website visualizations page. 
+    * [BikeMaps.org](https://bikemaps.org/vis/) provides an example to follow.
+
+```{r setup, echo=FALSE, warning=FALSE, message = FALSE, echo = FALSE, include = FALSE}
+
+library(ggplot2)
+library(leaflet)
+library(leaflet.extras)
+library(leaflet.opacity)
+library(sf)
+library(stringr)
+library(tidyverse)
+library(tm)
+library(wordcloud)
+
+# create a data folder (in the same directory) from here: https://www.dropbox.com/sh/e3xhul8zq0neko8/AACXmTYpRPjHNe6GwA73j7eia?dl=0
+# run download_data.Rmd to update walk roll map data
+
+# epsg code for wgs 84
+geographic_projection <- 4326
+
+# load data
+wrm <- read_csv("data/wrm.csv")
+
+wrm_spatial <- st_as_sf(wrm,
+                        coords = c("lon", "lat"), 
+                        crs = geographic_projection)
+
+# timezones
+timezones <- st_read("data/timezones/combined-shapefile.shp")
+offsets <- read_csv("data/timezones/offsets.csv")
+
+# colours and order to match the map
+
+colour_pallete <- c("#FFC945",  # hazard: yellow
+                    "#4281CD",  # missing amenity: blue
+                    "#F8485E")  # incident: red
+
+wrm_levels <- c("hazard-concern",
+                "amenity",
+                "incident")
+
+```
+
+# Map markers and heatmap
+The heatmap might not make as much sense as it does for BikeMaps, because the 
+reports on Walk Roll Map are more dispersed. Note that we can add opacity in a 
+later step (using Javascript) so it looks exactly like on BikeMaps. We can also 
+style the markers to match Walk Roll Map (this is a rough draft).
+
+To do: connect the graphs to the map extent to spatially subset the data.
+
+```{r map, echo = FALSE, warning = FALSE, message = FALSE}
+# centre on Victoria
+lat_centre <- 48.4295352
+lon_centre <- -123.3596742
+default_zoom = 12
+
+hazard_icons <- awesomeIcons(
+  icon = 'fa-solid fa-circle',
+  iconColor = 'darkblue',
+  library = 'fa',
+  markerColor = 'lightgray'
+)
+
+amenity_icons <- awesomeIcons(
+  icon = 'fa-solid fa-circle',
+  iconColor = 'darkblue',
+  library = 'fa',
+  markerColor = 'blue'
+)
+
+incident_icons <- awesomeIcons(
+  icon = 'fa-solid fa-circle',
+  iconColor = 'darkblue',
+  library = 'fa',
+  markerColor = 'red'
+)
+
+
+wrm_spatial$descriptions <- paste0("<b>",stringr::str_to_title(wrm_spatial$type),": </b>", 
+                       str_to_sentence(wrm_spatial$feature_type), "<br>",
+                       "<b>Date: </b>", wrm_spatial$date, "<br>",
+                       "<b>Id: </b>", wrm_spatial$id, "<br>",
+                       "<b>Description: </b>", wrm_spatial$description)
+
+marker_map <- leaflet() %>% 
+  setView(lng = lon_centre, 
+          lat = lat_centre, 
+          zoom = default_zoom) %>%
+  addTiles() %>%
+  addAwesomeMarkers(
+    data = wrm_spatial %>% filter(type %in% 'hazard-concern'),
+    label = ~as.character(str_to_sentence(type)),
+    popup = ~as.character(descriptions),
+    icon = hazard_icons,
+    clusterOptions = markerClusterOptions()) %>%
+  addAwesomeMarkers(
+    data = wrm_spatial %>% filter(type %in% 'amenity'),
+    label = ~as.character(str_to_sentence(type)),
+    popup = ~as.character(descriptions),
+    icon = amenity_icons,
+    clusterOptions = markerClusterOptions()) %>%
+  addAwesomeMarkers(
+    data = wrm_spatial %>% filter(type %in% 'incident'),
+    label = ~as.character(str_to_sentence(type)),
+    popup = ~as.character(descriptions),
+    icon = incident_icons,
+    clusterOptions = markerClusterOptions()) %>%
+  addHeatmap(
+    data = wrm_spatial,
+    radius = 40,
+    minOpacity = 0.3,
+    group = "Heatmap") %>%
+  addLayersControl(
+    overlayGroups = c("Heatmap"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("Heatmap")
+
+marker_map
+```
+
+## Reports by type
+Colours match Walk Roll Map legend.
+
+```{r report_types, echo = FALSE, warning = FALSE, message = FALSE}
+ggplot(wrm, aes(x=factor(type,
+                         levels = wrm_levels), 
+                fill=factor(type,
+                         levels = wrm_levels))) +  
+  geom_bar( ) +
+  scale_fill_manual(values = colour_pallete ) +
+  theme_minimal() +
+  theme(legend.position="none",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) + 
+  scale_x_discrete(breaks = c("hazard-concern",
+                              "amenity",
+                              "incident"),
+                   labels = c("Hazard/Concern",
+                              "Amenity",
+                              "Incident"))
+
+
+```
+
+## Reports by day of week
+```{r day_of_week, echo = FALSE, warning = FALSE, message = FALSE}
+
+wrm$day <- format(wrm$date, "%a") %>%
+  factor(levels = c("Mon",
+                    "Tue",
+                    "Wed",
+                    "Thu",
+                    "Fri",
+                    "Sat",
+                    "Sun"))
+
+ggplot(wrm, aes(fill=factor(type,
+                         levels = wrm_levels), 
+                x=day)) + 
+    geom_bar(position="stack", stat="count") + 
+  scale_fill_manual(values = colour_pallete ) +
+  theme_minimal() +
+  theme(legend.position="none",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+```
+
+
+## Reports by hour
+Need to consider timezones. Add UTC offset to get local timezone.
+
+* timezones: https://github.com/evansiroky/timezone-boundary-builder/releases
+* timezone offsets: http://joda-time.sourceforge.net/timezones.html
+```{r hourly, echo = FALSE, warning = FALSE, message = FALSE}
+timezones_with_offsets <- timezones %>%
+  left_join(offsets,
+            by = c("tzid" = "timezone"))
+
+wrm_spatial_tz <- st_intersection(wrm_spatial,
+                                    timezones_with_offsets)
+
+wrm_spatial_tz$hour <- (as.numeric(format(wrm_spatial_tz$date, "%H")) + 
+                          as.numeric(wrm_spatial_tz$offset_in_hours)) 
+
+hour_lt_0 <- which(wrm_spatial_tz$hour < 0)
+hour_gt_24 <- which(wrm_spatial_tz$hour > 24)
+
+wrm_spatial_tz[hour_lt_0, ]$hour <- 24 + wrm_spatial_tz[hour_lt_0, ]$hour
+wrm_spatial_tz[hour_gt_24, ]$hour <- wrm_spatial_tz[hour_gt_24, ]$hour - 24
+
+
+wrm_spatial_tz$hour <- wrm_spatial_tz$hour %>%
+  factor(levels = c("0",
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    "10",
+                    "11",
+                    "12",
+                    "13",
+                    "14",
+                    "15",
+                    "16",
+                    "17",
+                    "18",
+                    "19",
+                    "20",
+                    "21",
+                    "22",
+                    "23",
+                    "24"))
+
+ggplot(wrm_spatial_tz, aes(fill=factor(type,
+                         levels = wrm_levels), 
+                x=hour)) + 
+    geom_bar(position="stack", stat="count") + 
+  scale_fill_manual(values = colour_pallete ) +
+  theme_minimal() +
+  theme(legend.position="none",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+```
+
+
+## Reports by day of year
+
+```{r day_of_year, echo = FALSE, warning = FALSE, message = FALSE}
+wrm$doy <- format(wrm$date, "%j") %>%
+  factor(levels = as.character(0:365 %>% str_pad(width = 3,
+                                                 pad = 0)))
+# count and add zeros
+doy <- wrm %>%
+  group_by(doy) %>%
+  summarise(count = n())
+
+doy <- table(wrm$doy)
+
+doy <- data.frame(doy)
+names(doy) <- c("DOY", "Count")
+
+ggplot(doy, aes(x = DOY, y = Count)) + 
+    geom_bar(stat = "identity") + 
+  theme_minimal() +
+  theme(legend.position="none",
+        axis.title.x = element_blank()) +
+  scale_x_discrete(name = "date", 
+                   breaks = format(c(strptime("01/01/2021", "%d/%m/%Y"),
+                                     strptime("01/02/2021", "%d/%m/%Y"),
+                                     strptime("01/03/2021", "%d/%m/%Y"),
+                                     strptime("01/04/2021", "%d/%m/%Y"),
+                                     strptime("01/05/2021", "%d/%m/%Y"),
+                                     strptime("01/06/2021", "%d/%m/%Y"),
+                                     strptime("01/07/2021", "%d/%m/%Y"),
+                                     strptime("01/08/2021", "%d/%m/%Y"),
+                                     strptime("01/09/2021", "%d/%m/%Y"),
+                                     strptime("01/10/2021", "%d/%m/%Y"),
+                                     strptime("01/11/2021", "%d/%m/%Y"),
+                                     strptime("01/12/2021", "%d/%m/%Y")), "%j"), 
+                   labels = c("Jan",
+                              "Feb",
+                              "Mar",
+                              "Apr",
+                              "May",
+                              "Jun",
+                              "Jul",
+                              "Aug",
+                              "Sep",
+                              "Oct",
+                              "Nov",
+                              "Dec"))
+```
+
+
+### Top reports
+```{r top_reports, echo = FALSE, warning = FALSE, message = FALSE}
+am_types <- wrm %>%
+  filter(type %in% "amenity") %>%
+  group_by(feature_type) %>%
+  summarise(Amenity = n())
+
+haz_types <- wrm %>%
+  filter(type %in% "hazard-concern") %>%
+  group_by(feature_type, feature_subtype) %>%
+  summarise(Hazard_concern = n())
+
+inc_types <- wrm %>%
+  filter(type %in% "incident") %>%
+  group_by(feature_type, feature_subtype) %>%
+  summarise(Incidents = n())
+
+am_map <- am_types %>%
+  top_n(5) %>%
+  rename(Report = feature_type,
+         Count = Amenity) %>%
+  mutate(Report = reorder(Report, Count)) %>%
+  arrange(-Count) %>%
+  mutate(type = "Amenity")
+
+
+haz_map <- haz_types %>%
+  group_by(feature_type) %>%
+  summarise(Hazard_concern = sum(Hazard_concern)) %>%
+  top_n(5) %>%
+  rename(Report = feature_type,
+         Count = Hazard_concern) %>%
+  mutate(Report = reorder(Report, Count)) %>%
+  mutate(type = "Hazard")
+
+inc_map <- inc_types %>%
+  group_by(feature_subtype) %>%
+  summarise(Incidents = sum(Incidents)) %>%
+  top_n(5) %>%
+  rename(Report = feature_subtype,
+         Count = Incidents) %>%
+  mutate(Report = reorder(Report, Count)) %>%
+  arrange(-Count) %>%
+  mutate(type = "Incident")
+
+top_5_all <- rbind(am_map,
+                   haz_map,
+                   inc_map)
+
+top_5_all %>%
+  ggplot(aes(x = Count, 
+             y = Report,
+             fill = as.factor(Report))) +
+  geom_col() +
+  #scale_fill_brewer(palette = "Set1") + 
+  labs(y = NULL,
+       x = NULL) +
+  theme_minimal() +
+  theme(legend.position="none") + 
+  facet_wrap(~type, ncol = 1, scales = "free")
+
+```
+```{r amenity_word_freq, echo = FALSE, warning = FALSE, message = FALSE, include = FALSE}
+am_map %>%
+  ggplot(aes(Count, Report,
+             fill = as.factor(Report))) +
+  geom_col() +
+  scale_fill_brewer(palette = "Set1") + 
+  labs(y = NULL,
+       x = NULL) +
+  theme_minimal() +
+  theme(legend.position="none")
+
+```
+
+```{r hazard_word_freq, echo = FALSE, warning = FALSE, message = FALSE, include = FALSE}
+haz_map %>%
+  ggplot(aes(Count, Report,
+             fill = as.factor(Report))) +
+  geom_col() +
+  scale_fill_brewer(palette = "Set1") + 
+  labs(y = NULL,
+       x = NULL) +
+  theme_minimal() +
+  theme(legend.position="none")
+
+```
+
+```{r incident_word_freq, echo = FALSE, warning = FALSE, message = FALSE, include = FALSE}
+inc_map %>%
+  ggplot(aes(Count, Report,
+             fill = as.factor(Report))) +
+  geom_col() +
+  scale_fill_brewer(palette = "Set1") + 
+  labs(y = NULL,
+       x = NULL) +
+  theme_minimal() +
+  theme(legend.position="none")
+
+```
+
+
+## Tree maps
+
+Tree maps show proportions as a set of nested rectangles. The area is
+proportional to the number of reports. 
+
+There is a lot of information - maybe too much!
+
+```{r treemap_overall, echo = FALSE, warning = FALSE, message = FALSE}
+library(treemap)
+
+wrm_types <- wrm %>%
+  group_by(type, feature_type, feature_subtype) %>%
+  summarise(All_Reports = n())
+
+p <- treemap(wrm_types,
+            index=c("type","feature_type", "feature_subtype"),
+            vSize="All_Reports",
+            type="index",
+            palette = c(colour_pallete[2],
+                        colour_pallete[1],
+                        colour_pallete[3]),
+            bg.labels=100,
+            align.labels=list(
+              c("center", "center"), 
+              c("right", "bottom")
+            )  
+          )            
+```
+
+This is an interactive version of the tree map above:
+```{r treemap_overall_interactive, echo = FALSE, warning = FALSE, message = FALSE}
+library(d3treeR)
+
+inter <- d3tree2(p,  rootname = "All reports" )
+inter
+```
+
+### Amenity type tree map
+```{r tree_map_amenity, echo = FALSE, warning = FALSE, message = FALSE}
+ammenity <- treemap(am_types,
+            index=c("feature_type"),
+            vSize="Amenity",
+            type="index",
+            palette = "Set2",
+            bg.labels=100,
+            align.labels=list(
+              c("center", "center"), 
+              c("right", "bottom")
+            )  
+          )            
+ 
+```
+
+### Hazard type tree map
+```{r tree_map_hazard, echo = FALSE, warning = FALSE, message = FALSE}
+haz_tree <- treemap(haz_types,
+            index=c("feature_type", "feature_subtype"),
+            vSize="Hazard_concern",
+            type="index",
+            palette = "Set2",
+            bg.labels=100,
+            align.labels=list(
+              c("center", "center"), 
+              c("right", "bottom")
+            )  
+          )            
+ 
+```
+
+### Incident type tree map
+```{r tree_map_incident, echo = FALSE, warning = FALSE, message = FALSE}
+inc_tree <- treemap(inc_types,
+            index=c("feature_type", "feature_subtype"),
+            vSize="Incidents",
+            type="index",
+            palette = "Set2",
+            bg.labels=100,
+            align.labels=list(
+              c("center", "center"), 
+              c("right", "bottom")
+            )  
+          )            
+```
+
+## Frequency of keywords in description
+This section analyses the free text description field.
+
+* The reference for this section is the [tidytext book](https://www.tidytextmining.com/tidytext.html).
+* The figures are directly out of the book.
+
+### Most frequent words in desciption 
+```{r nlp_overal, echo = FALSE, warning = FALSE, message = FALSE}
+library(tidytext)
+library(wordcloud2)
+data(stop_words)
+
+amenity_text <- wrm %>%
+  filter(type %in% "amenity") %>%
+  select(description) %>%
+  unnest_tokens(word, description) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) 
+
+amenity_top <- amenity_text %>%
+  arrange(-n) %>%
+  top_n(8) %>%
+  mutate(word = paste0("amenity. ", word)) %>% # this to get the order due to repeated words. will replace
+  mutate(word = reorder(word, n),
+         type = "Amenity")
+
+hazard_text <- wrm %>%
+  filter(type %in% "hazard-concern") %>%
+  select(description) %>%
+  unnest_tokens(word, description) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) 
+
+hazard_top <- hazard_text %>%
+  arrange(-n) %>%
+  top_n(8) %>%
+  mutate(word = paste0("hazard. ", word)) %>% # this to get the order due to repeated words. will replace
+  mutate(word = reorder(word, n),
+         type = "Hazard")
+
+incident_text <- wrm %>%
+  filter(type %in% "incident") %>%
+  select(description) %>%
+  unnest_tokens(word, description) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) 
+
+incident_top <- incident_text %>%
+  arrange(-n) %>%
+  top_n(8) %>%
+  mutate(word = paste0("incident. ", word)) %>% # this to get the order due to repeated words. will replace
+  mutate(word = reorder(word, n),
+         type = "Incident")
+
+top_words <- rbind(amenity_top, hazard_top, incident_top)
+top_words <- top_words %>%
+  group_by(type) %>%
+  mutate(word = reorder(word, n))
+
+words <- top_words$word %>% as.character()
+clean_labels <- words %>%
+  str_remove("amenity. ") %>%
+  str_remove("hazard. ") %>%
+  str_remove("incident. ")
+  
+
+top_words %>%
+  ggplot(aes(x = word, 
+             y = n,
+             fill = as.factor(word))) +
+  geom_col() +
+  coord_flip() +
+  #scale_fill_brewer(palette = "Set1") + 
+  labs(y = NULL,
+       x = NULL) +
+  scale_x_discrete(breaks = words,
+                   labels = clean_labels) + # this is to get the order right
+  theme_minimal() +
+  theme(legend.position="none") + 
+  facet_wrap(~type, ncol = 1, scales = "free")
+
+```
+
+### Amenity
+```{r wordcloud_amenity, echo = FALSE, warning = FALSE, message = FALSE}
+#wordcloud2(amenity_text %>% top_n(100))
+# the older version of wordcloud seems more reliable for R notebooks...
+library(wordcloud)
+library(tm)
+library(RColorBrewer)
+pal <- brewer.pal(6,"GnBu")
+
+words <- amenity_text %>% top_n(100)
+
+wordcloud::wordcloud(words = words$word,
+                     freq = words$n,
+                     colors = pal)
+```
+
+### Hazard/Concern
+```{r wordcloud_hazard, echo = FALSE, warning = FALSE, message = FALSE}
+words <- hazard_text %>% top_n(100)
+pal <- brewer.pal(6,"YlGn")
+
+wordcloud::wordcloud(words = words$word,
+                     freq = words$n,
+                     colors = pal)
+
+```
+
+### Incident
+```{r wordcloud_incident, echo = FALSE, warning = FALSE, message = FALSE}
+words <- incident_text %>% top_n(100)
+pal <- brewer.pal(6,"OrRd")
+
+wordcloud::wordcloud(words = words$word,
+                     freq = words$n,
+                     colors = pal)
+```
+
+### Term frequency and inverse document frequency
+These graphs show which words are unique to each type of report.
+
+```{r nlp_tf_idf, echo = FALSE, warning = FALSE, message = FALSE}
+report_words <- wrm %>%
+  unnest_tokens(word, description) %>%
+  count(type, word, sort = TRUE) %>%
+  anti_join(stop_words)
+
+plot_reports <- report_words %>%
+  bind_tf_idf(word, type, n) %>%
+  mutate(type = factor(type, levels = wrm_levels))
+
+plot_reports %>% 
+  group_by(type) %>% 
+  slice_max(tf_idf, n = 7) %>% 
+  #ungroup() %>%
+  mutate(word = reorder(word, tf_idf)) %>%
+  ggplot(aes(tf_idf, word, fill = type)) +
+  scale_fill_manual(values = colour_pallete ) +
+  geom_col(show.legend = FALSE) +
+  labs(x = "tf-idf", y = NULL) +
+  facet_wrap(~type, ncol = 2, scales = "free") +
+  theme_minimal()
+```
+
