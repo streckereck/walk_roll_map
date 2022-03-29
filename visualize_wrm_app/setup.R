@@ -18,7 +18,7 @@ geographic_projection <- 4326
 
 # data
 wrm <- read_csv("data/wrm.csv")
-crd <- st_read("data/CRD.gpkg")
+crd <- st_read("data/crd.gpkg")
 langford <- st_read("data/langford.gpkg")
 saanich <- st_read("data/saanich.gpkg")
 victoria <- st_read("data/victoria.gpkg")
