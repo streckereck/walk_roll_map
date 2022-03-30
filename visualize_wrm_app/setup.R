@@ -1,6 +1,51 @@
 ################################################################################
 # Setup
 ################################################################################
+# load current data
+library(jsonlite)
+hazard <- jsonlite::fromJSON("https://walkrollmap.org/api/hazard",
+                              flatten = T,
+                              simplifyDataFrame = T) %>%
+    as.data.frame() %>%
+  mutate(feature_subtype = NA) %>%
+  select(
+    id = features.properties.id,
+    date = features.properties.date,
+    type = features.properties.type,
+    feature_type = features.properties.hazard_type,
+    feature_subtype,
+    description = features.properties.description)
+
+amenity <- jsonlite::fromJSON("https://walkrollmap.org/api/amenity",
+                             flatten = T,
+                             simplifyDataFrame = T) %>%
+  as.data.frame() %>%
+  mutate(feature_subtype = NA) %>%
+  select(
+    id = features.properties.id,
+    date = features.properties.date,
+    type = features.properties.type,
+    feature_type = features.properties.amenity_type,
+    feature_subtype,
+    description = features.properties.description)
+
+incident <- jsonlite::fromJSON("https://walkrollmap.org/api/incident",
+                              flatten = T,
+                              simplifyDataFrame = T) %>%
+  as.data.frame() %>%
+  mutate(feature_subtype = NA) %>%
+  select(
+    id = features.properties.id,
+    date = features.properties.date,
+    type = features.properties.type,
+    feature_type = features.properties.incident_type,
+    feature_subtype,
+    description = features.properties.description)
+
+wrm <- rbind(hazard,
+             amenity,
+             incident)
+
 # colours and order to match the map
 colour_palette <- c("#FFC945",  # hazard: yellow
                     "#4281CD",  # missing amenity: blue
