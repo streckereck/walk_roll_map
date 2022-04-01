@@ -2,7 +2,6 @@
 # Setup
 ################################################################################
 # load current data
-library(jsonlite)
 hazard <- jsonlite::fromJSON("https://walkrollmap.org/api/hazard",
                               flatten = T,
                               simplifyDataFrame = T) %>%
@@ -14,7 +13,8 @@ hazard <- jsonlite::fromJSON("https://walkrollmap.org/api/hazard",
     type = features.properties.type,
     feature_type = features.properties.hazard_type,
     feature_subtype,
-    description = features.properties.description)
+    description = features.properties.description,
+    geometry = features.geometry.coordinates)
 
 amenity <- jsonlite::fromJSON("https://walkrollmap.org/api/amenity",
                              flatten = T,
@@ -27,7 +27,8 @@ amenity <- jsonlite::fromJSON("https://walkrollmap.org/api/amenity",
     type = features.properties.type,
     feature_type = features.properties.amenity_type,
     feature_subtype,
-    description = features.properties.description)
+    description = features.properties.description,
+    geometry = features.geometry.coordinates)
 
 incident <- jsonlite::fromJSON("https://walkrollmap.org/api/incident",
                               flatten = T,
@@ -40,11 +41,19 @@ incident <- jsonlite::fromJSON("https://walkrollmap.org/api/incident",
     type = features.properties.type,
     feature_type = features.properties.incident_type,
     feature_subtype,
-    description = features.properties.description)
+    description = features.properties.description,
+    geometry = features.geometry.coordinates)
 
 wrm <- rbind(hazard,
              amenity,
-             incident)
+             incident) %>%
+  arrange(id) %>%
+  mutate(date = as.POSIXct(date/1000, origin="1970-01-01 00:00:00")) %>%
+  rowwise() %>%
+  mutate(
+    lon = geometry[1],
+    lat = geometry[2]) %>%
+  select(-geometry)
 
 # colours and order to match the map
 colour_palette <- c("#FFC945",  # hazard: yellow
@@ -60,9 +69,9 @@ wrm_levels <- c("hazard-concern",
 
 # epsg code for wgs 84
 geographic_projection <- 4326
+pseudo_mercator <- 3857
 
 # data
-wrm <- read_csv("data/wrm.csv")
 crd <- st_read("data/crd.gpkg")
 langford <- st_read("data/langford.gpkg")
 saanich <- st_read("data/saanich.gpkg")
@@ -88,10 +97,15 @@ wrm$doy <- format(wrm$date, "%j") %>%
 
 wrm$days_since_report <- days_since(wrm$date)
 
-wrm_spatial <- st_as_sf(wrm,
-                        coords = c("lon", "lat"),
-                        remove = F,
-                        crs = geographic_projection)
+wrm_spatial <- wrm %>%
+  st_as_sf(coords = c("lon", "lat"),
+           crs = pseudo_mercator) %>%
+  st_transform(geographic_projection)
+
+# wrm_spatial <- st_as_sf(wrm,
+#                         coords = c("lon", "lat"),
+#                         remove = F,
+#                         crs = geographic_projection)
 
 # descriptions for leaflet map
 wrm_spatial$descriptions <- paste0("<b>",stringr::str_to_title(wrm_spatial$type),": </b>", 
@@ -110,12 +124,12 @@ wrm_spatial$type <- factor(wrm_spatial$type,
 how_many_days_ago_was_the_first_day_of_the_month <- function(month_num){
   # if the month is earlier (or the same) than this month, use this year
   # if the month is later than this month, use last year
-  earlier <- format(now(), "%m") >= month_num
+  earlier <- format(Sys.Date(), "%m") >= month_num
   first_day_of_month <- strptime(paste0("01/",
                                         month_num, "/",
                                         ifelse(earlier,
-                                               as.numeric(format(now(), "%Y")),
-                                               as.numeric(format(now(), "%Y"))-1)), 
+                                               as.numeric(format(Sys.Date(), "%Y")),
+                                               as.numeric(format(Sys.Date(), "%Y"))-1)), 
                                  format = "%d/%m/%Y")
   
   days_since_first_day_of_month <- days_since(first_day_of_month) %>%

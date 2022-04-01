@@ -1,6 +1,6 @@
+library(jsonlite)
 library(leaflet)
 library(leaflet.extras)
-library(lubridate)
 library(sf)
 library(shiny)
 library(tidyverse)
@@ -41,16 +41,17 @@ ui <- fluidPage(
                                        "Capital Regional District (CRD)",
                                        "Langford",
                                        "Saanich",
-                                       "Victoria"))),
+                                       "Victoria"),
+                           selected = "All reports")),
         column(4,
                dateRangeInput(inputId = "date_range_input",
                               label = "Date range",
                               start =  min(wrm$date),
-                              end = now())
+                              end = Sys.Date())
         ),
         column(4,
                fluidRow(actionButton(inputId = "all_reports",
-                                     label = "All reports")),
+                                     label = "All time")),
                fluidRow(actionButton(inputId = "this_year",
                                      label = "This year")))
         

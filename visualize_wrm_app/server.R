@@ -10,23 +10,24 @@ server <- function(input, output) {
   observe({
     if(input$this_year){
       updateDateRangeInput(inputId = "date_range_input",
-                           start = now() - as.difftime(365, unit="days"),
-                           end = now())
+                           start = Sys.Date() - as.difftime(365, unit="days"),
+                           end = Sys.Date())
     }
   })
   
   filteredData <- reactive({
+    selected_data <- wrm_spatial
     
-    selected_data <- wrm_spatial %>%
+    selected_data <- selected_data %>%
       filter(date > input$date_range_input[1] &
                date < input$date_range_input[2])
-    
+
     if(input$spatial_subset %in% "Map extent"){
       selected_data <- selected_data %>%
         st_intersection(map_extent())
     } else if(input$spatial_subset %in% "Capital Regional District (CRD)"){
       selected_data <- selected_data %>%
-        st_intersection(crd)} 
+        st_intersection(crd)}
     else if(input$spatial_subset %in% "Langford"){
       selected_data <- selected_data %>%
         st_intersection(langford)
@@ -37,17 +38,17 @@ server <- function(input, output) {
       selected_data <- selected_data %>%
         st_intersection(victoria)
     }
-    
+
     if(! "Hazard / Concern" %in% input$layers){
       selected_data <- selected_data %>%
         filter(! type %in% "hazard-concern")
-    } 
-    
+    }
+
     if(! "Amenity" %in% input$layers){
       selected_data <- selected_data %>%
         filter(! type %in% "amenity")
-    } 
-    
+    }
+
     if(! "Incident" %in% input$layers){
       selected_data <- selected_data %>%
         filter(! type %in% "incident")
@@ -233,6 +234,7 @@ server <- function(input, output) {
         group_by(detail) %>%
         summarise(issue_count = n()) %>%
         top_n(5) %>%
+        mutate(detail = str_to_sentence(detail)) %>%
         rename(Report = detail,
                Count = issue_count) %>%
         mutate(Report = reorder(Report, Count)) %>%
