@@ -1,6 +1,3 @@
-################################################################################
-# Setup
-################################################################################
 # load current data
 hazard <- jsonlite::fromJSON("https://walkrollmap.org/api/hazard",
                               flatten = T,
@@ -71,12 +68,8 @@ wrm_levels <- c("hazard-concern",
 geographic_projection <- 4326
 pseudo_mercator <- 3857
 
-# data
-crd <- st_read("data/crd.gpkg")
-langford <- st_read("data/langford.gpkg")
-saanich <- st_read("data/saanich.gpkg")
-victoria <- st_read("data/victoria.gpkg")
-
+# spatial data (city extents in geographic projection)
+geographic_presets <- st_read("data/geographic_presets.gpkg")
 
 # for dates: how many days ago were reports?
 days_since <- function(date_in_past){
@@ -102,11 +95,6 @@ wrm_spatial <- wrm %>%
            crs = pseudo_mercator) %>%
   st_transform(geographic_projection)
 
-# wrm_spatial <- st_as_sf(wrm,
-#                         coords = c("lon", "lat"),
-#                         remove = F,
-#                         crs = geographic_projection)
-
 # descriptions for leaflet map
 wrm_spatial$descriptions <- paste0("<b>",stringr::str_to_title(wrm_spatial$type),": </b>", 
                                    str_to_sentence(wrm_spatial$feature_type), "<br>",
@@ -117,8 +105,6 @@ wrm_spatial$descriptions <- paste0("<b>",stringr::str_to_title(wrm_spatial$type)
 # create factors for consistent colours
 wrm_spatial$type <- factor(wrm_spatial$type,
                            levels = wrm_levels)
-
-
 
 ## custom labels for time bar graph
 how_many_days_ago_was_the_first_day_of_the_month <- function(month_num){
@@ -141,13 +127,14 @@ how_many_days_ago_was_the_first_day_of_the_month <- function(month_num){
 breaks <-  how_many_days_ago_was_the_first_day_of_the_month(
   c("01", "02", "03", "04", "05", "06", 
     "07", "08" ,"09", "10", "11", "12"))
+
 labels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
-
-# custom function for wordcloud plotting. Solves an issue where the wordcloud 
-# causes the barplot to not render
+# custom function for wordcloud plotting. 
+# Solves an issue where the wordcloud causes the barplot to not render
 # source: https://github.com/rstudio/shinydashboard/issues/281
+
 wordcloud2a <- function (data, size = 1, minSize = 0, gridSize = 0, fontFamily = "Segoe UI", 
                          fontWeight = "bold", color = "random-dark", backgroundColor = "white", 
                          minRotation = -pi/4, maxRotation = pi/4, shuffle = TRUE, 

@@ -17,39 +17,40 @@ server <- function(input, output) {
   
   filteredData <- reactive({
     selected_data <- wrm_spatial
+    spatial_subset_name <- input$spatial_subset
+    layer_subset <- input$layers
     
     selected_data <- selected_data %>%
       filter(date > input$date_range_input[1] &
                date < input$date_range_input[2])
 
-    if(input$spatial_subset %in% "Map extent"){
+    
+    if(spatial_subset_name %in% "All reports"){
+      map_hide_boundary()
+    } else if(spatial_subset_name %in% "Map extent"){
+      map_hide_boundary()
       selected_data <- selected_data %>%
         st_intersection(map_extent())
-    } else if(input$spatial_subset %in% "Capital Regional District (CRD)"){
+    } else {
+      boundary <- geographic_presets %>% filter(name %in% spatial_subset_name)
       selected_data <- selected_data %>%
-        st_intersection(crd)}
-    else if(input$spatial_subset %in% "Langford"){
-      selected_data <- selected_data %>%
-        st_intersection(langford)
-    } else if(input$spatial_subset %in% "Saanich"){
-      selected_data <- selected_data %>%
-        st_intersection(saanich)
-    } else if(input$spatial_subset %in% "Victoria"){
-      selected_data <- selected_data %>%
-        st_intersection(victoria)
+        st_intersection(boundary)
+      map_hide_boundary()
+      map_zoom_exent(boundary)
+      map_show_boundary(boundary)
     }
 
-    if(! "Hazard / Concern" %in% input$layers){
+    if(! "Hazard / Concern" %in% layer_subset){
       selected_data <- selected_data %>%
         filter(! type %in% "hazard-concern")
     }
 
-    if(! "Amenity" %in% input$layers){
+    if(! "Amenity" %in% layer_subset){
       selected_data <- selected_data %>%
         filter(! type %in% "amenity")
     }
 
-    if(! "Incident" %in% input$layers){
+    if(! "Incident" %in% layer_subset){
       selected_data <- selected_data %>%
         filter(! type %in% "incident")
     }
@@ -204,6 +205,31 @@ server <- function(input, output) {
     }
     
   })
+  
+  map_show_boundary <- function(boundary){
+    leafletProxy(mapId = "leaflet_map") %>%
+      addPolygons(
+        data = boundary,
+        color = "#40e0d0",
+        fill = NULL,
+        opacity = 0.8,
+        group = "boundary")
+  }
+  
+  map_hide_boundary <- function(){
+    leafletProxy(mapId = "leaflet_map") %>%
+      clearGroup("boundary")
+  }
+  
+  map_zoom_exent <- function(boundary){
+    boundary_bbox <- st_bbox(boundary)
+    
+    leafletProxy(mapId = "leaflet_map") %>%
+      fitBounds(lng1 = boundary_bbox$xmin %>% as.numeric(), 
+                lat1 = boundary_bbox$ymin %>% as.numeric(), 
+                lng2 = boundary_bbox$xmax %>% as.numeric(), 
+                lat2 = boundary_bbox$ymax %>% as.numeric())
+  }
   
   output$wordcloud <- renderWordcloud2({
     text <- filteredData() %>%
