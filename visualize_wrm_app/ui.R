@@ -45,7 +45,12 @@ header.append('<div style=\"float:right\"><a href=\"https://walkrollmap.org/\"><
         tabPanel("All reports",
                  plotOutput(outputId = "treemap")),
         tabPanel("Descriptions",
-                 wordcloud2Output(outputId = "wordcloud"))
+                 wordcloud2Output(outputId = "wordcloud")),
+        tabPanel("Download",
+                 selectInput("format", "Choose a format:",
+                             choices = c("csv", "kml", "gpkg")),
+                 downloadButton(outputId = "downloadData", 
+                                label = "Download"))
       )),
     
     mainPanel(
@@ -76,7 +81,7 @@ header.append('<div style=\"float:right\"><a href=\"https://walkrollmap.org/\"><
       ),
       textOutput(outputId = "report_count"),
       fluidRow(leafletOutput(outputId = "leaflet_map")),
-      fluidRow(plotOutput(outputId = "timebars",
+      fluidRow(plotlyOutput(outputId = "timebars",
                           height = 100)),
     )
   ))

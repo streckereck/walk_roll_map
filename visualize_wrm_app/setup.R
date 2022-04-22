@@ -95,6 +95,9 @@ wrm_spatial <- wrm %>%
            crs = pseudo_mercator) %>%
   st_transform(geographic_projection)
 
+wrm_spatial$lat <- unlist(map(wrm_spatial$geometry,1))
+wrm_spatial$lon <- unlist(map(wrm_spatial$geometry,2))
+
 # descriptions for leaflet map
 wrm_spatial$descriptions <- paste0("<b>",stringr::str_to_title(wrm_spatial$type),": </b>", 
                                    str_to_sentence(wrm_spatial$feature_type), "<br>",

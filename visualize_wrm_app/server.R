@@ -113,7 +113,7 @@ server <- function(input, output) {
     }
   })
   
-  output$timebars <- renderPlot({
+  output$timebars <- renderPlotly({
     # all reports in the background in gray,
     # visible reports in the foreground in black
     reports_in_last_year <- which(as.integer(as.character(wrm$days_since_report)) <= 365)
@@ -151,7 +151,7 @@ server <- function(input, output) {
                    names_to = "Visible",
                    values_to = "Count")
     
-    ggplot(all_reports_long,
+    time_graph <- ggplot(all_reports_long,
            aes(x = days_since_report,
                y = Count,
                fill = Visible)) +
@@ -166,6 +166,8 @@ server <- function(input, output) {
                        labels = labels,
                        limits=rev) +
       ggtitle("Reports in the last year")
+    
+    ggplotly(time_graph)
   })
   
   output$leaflet_map <- renderLeaflet({
@@ -267,12 +269,44 @@ server <- function(input, output) {
         arrange(-Count)
       
       
-      reports %>%
+      report_graph <- reports %>%
         ggplot(aes(x = Count,
                    y = Report)) +
         geom_col(fill = "black") +
         labs(y = NULL) +
         theme_minimal()
+      
+      return(report_graph)
     }
   })
+  
+  output$downloadData <- downloadHandler(
+    filename = function(){
+      paste("walk_roll_map_",
+            as.character(Sys.Date()),
+            ".",
+            input$format, sep = "")
+    },
+    content = function(file) {
+      if (input$format == "csv"){
+        write.csv(x = filteredData() %>%
+                    st_drop_geometry() %>%
+                    select(-c(doy, days_since_report, descriptions)), 
+                  file = file,
+                  row.names = F)
+      } else if (input$format == "kml"){
+        st_write(filteredData() %>%
+                   select(Name = type,
+                          Description = descriptions),
+                 dsn = file,
+                 driver = "KML")
+      } else if (input$format == "gpkg"){
+        st_write(filteredData() %>%
+                   select(-c(doy, days_since_report, descriptions, lat, lon)),
+                 dsn = file,
+                 driver = "GPKG")
+      }
+
+    }
+  )
 }
