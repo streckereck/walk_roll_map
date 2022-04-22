@@ -179,8 +179,12 @@ server <- function(input, output) {
   output$leaflet_map <- renderLeaflet({
     leaflet(wrm_spatial) %>% 
       addProviderTiles(providers$Stamen.TonerLite,
-                       options = providerTileOptions(noWrap = TRUE)) 
-  })
+                       options = providerTileOptions(noWrap = TRUE)) %>%
+      fitBounds(lng1 = st_bbox(wrm_spatial)$xmin %>% as.numeric(), 
+                lat1 = st_bbox(wrm_spatial)$ymin %>% as.numeric(), 
+                lng2 = st_bbox(wrm_spatial)$xmax %>% as.numeric(), 
+                lat2 = st_bbox(wrm_spatial)$ymax %>% as.numeric())
+    })
   
   observe({
     if(nrow(filteredData()) > 0){
