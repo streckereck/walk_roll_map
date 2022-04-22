@@ -3,13 +3,12 @@ hazard <- jsonlite::fromJSON("https://walkrollmap.org/api/hazard",
                               flatten = T,
                               simplifyDataFrame = T) %>%
     as.data.frame() %>%
-  mutate(feature_subtype = NA) %>%
   select(
     id = features.properties.id,
     date = features.properties.date,
     type = features.properties.type,
     feature_type = features.properties.hazard_type,
-    feature_subtype,
+    feature_subtype = features.properties.hazard_subtype,
     description = features.properties.description,
     geometry = features.geometry.coordinates)
 
@@ -31,13 +30,12 @@ incident <- jsonlite::fromJSON("https://walkrollmap.org/api/incident",
                               flatten = T,
                               simplifyDataFrame = T) %>%
   as.data.frame() %>%
-  mutate(feature_subtype = NA) %>%
   select(
     id = features.properties.id,
     date = features.properties.date,
     type = features.properties.type,
     feature_type = features.properties.incident_type,
-    feature_subtype,
+    feature_subtype = features.properties.incident_with,
     description = features.properties.description,
     geometry = features.geometry.coordinates)
 
