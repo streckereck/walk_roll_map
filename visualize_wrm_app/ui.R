@@ -1,7 +1,6 @@
 library(jsonlite)
 library(leaflet)
 library(leaflet.extras)
-library(plotly)
 library(sf)
 library(shiny)
 library(tidyverse)
@@ -81,7 +80,7 @@ header.append('<div style=\"float:right\"><a href=\"https://walkrollmap.org/\"><
       ),
       textOutput(outputId = "report_count"),
       fluidRow(leafletOutput(outputId = "leaflet_map")),
-      fluidRow(plotlyOutput(outputId = "timebars",
+      fluidRow(plotOutput(outputId = "timebars",
                           height = 100)),
     )
   ))

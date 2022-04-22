@@ -29,8 +29,10 @@ server <- function(input, output) {
       map_hide_boundary()
     } else if(spatial_subset_name %in% "Map extent"){
       map_hide_boundary()
-      selected_data <- selected_data %>%
-        st_intersection(map_extent())
+      if(input$leaflet_map_zoom > 2){
+        selected_data <- selected_data %>%
+          st_intersection(map_extent())
+      } 
     } else {
       boundary <- geographic_presets %>% filter(name %in% spatial_subset_name)
       selected_data <- selected_data %>%
@@ -113,7 +115,7 @@ server <- function(input, output) {
     }
   })
   
-  output$timebars <- renderPlotly({
+  output$timebars <- renderPlot({
     # all reports in the background in gray,
     # visible reports in the foreground in black
     reports_in_last_year <- which(as.integer(as.character(wrm$days_since_report)) <= 365)
@@ -167,19 +169,11 @@ server <- function(input, output) {
                        limits=rev) +
       ggtitle("Reports in the last year")
     
-    ggplotly(time_graph)
+    return(time_graph)
   })
   
   output$leaflet_map <- renderLeaflet({
-    # default centre on Victoria
-    lat_centre <- 48.4295352
-    lon_centre <- -123.3596742
-    default_zoom = 12
-    
     leaflet(wrm_spatial) %>% 
-      setView(lng = lon_centre, 
-              lat = lat_centre, 
-              zoom = default_zoom) %>%
       addProviderTiles(providers$Stamen.TonerLite,
                        options = providerTileOptions(noWrap = TRUE)) 
   })
