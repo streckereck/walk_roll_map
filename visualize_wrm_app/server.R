@@ -27,12 +27,11 @@ server <- function(input, output) {
     
     if(spatial_subset_name %in% "All reports"){
       map_hide_boundary()
+      map_zoom_exent(selected_data)
     } else if(spatial_subset_name %in% "Map extent"){
       map_hide_boundary()
-      if(input$leaflet_map_zoom > 2){
         selected_data <- selected_data %>%
           st_intersection(map_extent())
-      } 
     } else {
       boundary <- geographic_presets %>% filter(name %in% spatial_subset_name)
       selected_data <- selected_data %>%
@@ -60,7 +59,12 @@ server <- function(input, output) {
   })
   
   map_extent <- reactive({
-    coordlist <- unlist(input$leaflet_map_bounds)
+    if(! is.null(input$leaflet_map_bounds)){
+      coordlist <- unlist(input$leaflet_map_bounds)
+    } else {
+      coordlist <- c(-90, -180, 90, 180)
+    }
+    
     
     map_extent_coords <- data.frame(lat = c(coordlist[1], coordlist[3]),
                                     lon = c(coordlist[2], coordlist[4]))
