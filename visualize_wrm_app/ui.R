@@ -60,6 +60,7 @@ header.append('<div style=\"float:right\"><a href=\"https://walkrollmap.org/\"><
                            label = "Spatial subset",
                            choices = c("All reports",
                                        "Map extent",
+                                       "Canada",
                                        "Capital Regional District (CRD)",
                                        "Langford",
                                        "Saanich",
