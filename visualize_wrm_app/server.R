@@ -275,6 +275,10 @@ server <- function(input, output) {
         ggplot(aes(x = Count,
                    y = Report)) +
         geom_col(fill = "black") +
+        geom_text(aes(label = Count), 
+                  position="stack",
+                  hjust = 1.5,
+                  colour = "white") +
         labs(y = NULL) +
         theme_minimal()
       
