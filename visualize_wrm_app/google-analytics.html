@@ -1,0 +1,13 @@
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-2Z6Y5T4DDM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-2Z6Y5T4DDM');
+  
+  $(document).on('click', 'downloadData', function() {
+    ga('send', 'event', 'button', 'download data');
+  });
+</script>

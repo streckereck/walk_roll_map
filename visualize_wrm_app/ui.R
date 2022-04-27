@@ -14,6 +14,7 @@ ui <- fluidPage(
   # help from: https://stackoverflow.com/questions/60151766/adding-images-in-the-title-and-at-the-right-of-navbarpage
   
   tags$head(
+    includeHTML(("google-analytics.html")),
     tags$link(rel = "shortcut icon", type = "image/png", href = "wrm_logo.png"),
     tags$title("Walk Roll Map Visualize")
   ),
