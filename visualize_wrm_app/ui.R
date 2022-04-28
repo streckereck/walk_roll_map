@@ -66,7 +66,7 @@ header.append('<div style=\"float:right\"><a href=\"https://walkrollmap.org/\"><
                                        "Saanich",
                                        "Victoria",
                                        "View Royal"),
-                           selected = "Map extent")),
+                           selected = map_mode)),
         column(4,
                dateRangeInput(inputId = "date_range_input",
                               label = "Date range",

@@ -16,8 +16,15 @@ server <- function(input, output) {
   })
   
   filteredData <- reactive({
-    selected_data <- wrm_spatial
+    # monitor map mode
     spatial_subset_name <- input$spatial_subset
+    if(map_mode != spatial_subset_name){
+      change_extent <- T
+      map_mode <- spatial_subset_name
+    }
+    
+    # filter data
+    selected_data <- wrm_spatial
     layer_subset <- input$layers
     
     selected_data <- selected_data %>%
@@ -26,19 +33,24 @@ server <- function(input, output) {
 
     
     if(spatial_subset_name %in% "All reports"){
-      map_hide_boundary()
-      map_zoom_exent(selected_data)
+      if(change_extent){
+        map_hide_boundary()
+        map_zoom_exent(selected_data)
+      }
     } else if(spatial_subset_name %in% "Map extent"){
       map_hide_boundary()
-        selected_data <- selected_data %>%
-          st_intersection(map_extent())
+      selected_data <- selected_data %>%
+        st_intersection(map_extent())
     } else {
       boundary <- geographic_presets %>% filter(name %in% spatial_subset_name)
       selected_data <- selected_data %>%
         st_intersection(boundary)
-      map_hide_boundary()
-      map_zoom_exent(boundary)
-      map_show_boundary(boundary)
+      
+      if(change_extent){
+        map_hide_boundary()
+        map_zoom_exent(boundary)
+        map_show_boundary(boundary)
+      }
     }
 
     if(! "Hazard / Concern" %in% layer_subset){

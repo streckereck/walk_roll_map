@@ -66,6 +66,9 @@ wrm_levels <- c("hazard-concern",
 geographic_projection <- 4326
 pseudo_mercator <- 3857
 
+# for setting and monitoring the state of the map
+map_mode <- "Map extent"
+
 # spatial data (city extents in geographic projection)
 geographic_presets <- st_read("data/geographic_presets.gpkg")
 
