@@ -1,6 +1,7 @@
 library(jsonlite)
 library(leaflet)
 library(leaflet.extras)
+library(scales)
 library(sf)
 library(shiny)
 library(tidyverse)

@@ -281,18 +281,20 @@ server <- function(input, output) {
                Count = issue_count) %>%
         mutate(Report = reorder(Report, Count)) %>%
         arrange(-Count)
-      
-      
+
       report_graph <- reports %>%
         ggplot(aes(x = Count,
                    y = Report)) +
         geom_col(fill = "black") +
+        scale_y_discrete(labels = wrap_format(15)) +
         geom_text(aes(label = Count), 
                   position="stack",
                   hjust = 1.5,
-                  colour = "white") +
+                  colour = "white",
+                  size = 4.1) +
         labs(y = NULL) +
-        theme_minimal()
+        theme_minimal() + 
+        theme(axis.text.y = element_text(size=15))
       
       return(report_graph)
     }
