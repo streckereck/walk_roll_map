@@ -178,7 +178,10 @@ server <- function(input, output) {
       scale_fill_manual(values= rev(colour_palette_tf)) +
       theme_minimal() +
       theme(legend.position="none",
-            axis.title.x = element_blank()) +
+            axis.title.x = element_blank(),
+            axis.text = element_text(size=15),
+            axis.title = element_text(size=15),
+            title = element_text(size=15)) +
       scale_x_discrete(name = "date",
                        breaks = breaks,
                        labels = labels,
@@ -291,10 +294,11 @@ server <- function(input, output) {
                   position="stack",
                   hjust = 1.5,
                   colour = "white",
-                  size = 4.1) +
+                  size = 4.3) +
         labs(y = NULL) +
         theme_minimal() + 
-        theme(axis.text.y = element_text(size=15))
+        theme(axis.text = element_text(size=15),
+              axis.title=element_text(size=15))
       
       return(report_graph)
     }
