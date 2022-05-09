@@ -65,6 +65,8 @@ header.append('<div style=\"float:right\"><a href=\"https://walkrollmap.org/\"><
                                        "Capital Regional District (CRD)",
                                        "Langford",
                                        "Saanich",
+                                       "Saskatoon",
+                                       "Sidney",
                                        "Victoria",
                                        "View Royal"),
                            selected = map_mode)),

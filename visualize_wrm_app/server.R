@@ -284,6 +284,11 @@ server <- function(input, output) {
                Count = issue_count) %>%
         mutate(Report = reorder(Report, Count)) %>%
         arrange(-Count)
+      
+      if(nrow(reports) > 6) {
+        reports <- reports %>%
+          filter(! Count %in% min(Count))
+      }
 
       report_graph <- reports %>%
         ggplot(aes(x = Count,
