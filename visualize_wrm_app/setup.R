@@ -47,7 +47,10 @@ wrm <- rbind(hazard,
   rowwise() %>%
   mutate(
     lon = geometry[1],
-    lat = geometry[2]) %>%
+    lat = geometry[2],
+    feature_subtype = ifelse(feature_subtype %in% "vehicle turning head-on",
+                             "vehicle head-on",
+                             feature_subtype)) %>%
   select(-geometry)
 
 # colours and order to match the map
@@ -71,6 +74,11 @@ map_mode <- "Map extent"
 
 # spatial data (city extents in geographic projection)
 geographic_presets <- st_read("data/geographic_presets.gpkg")
+
+extents <- c("All reports",
+             "Map extent",
+             geographic_presets$name)
+
 
 # for dates: how many days ago were reports?
 days_since <- function(date_in_past){
