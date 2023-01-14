@@ -52,7 +52,7 @@ ui <- fluidPage(
         column(4,
                dateRangeInput(inputId = "date_range_input",
                               label = "Date range",
-                              start =  min(wrm$date),
+                              start =  "2021-01-01",
                               end = Sys.Date())
         ),
         column(4,

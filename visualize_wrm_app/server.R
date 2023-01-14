@@ -282,10 +282,12 @@ server <- function(input, output) {
     if(nrow(filteredData()) > 0){
       reports <- filteredData() %>%
         st_drop_geometry() %>%
-        mutate(detail = ifelse((is.na(feature_subtype) |
-                                  feature_subtype %in% "other"),
+        mutate(detail = ifelse((is.na(feature_subtype)),
                                feature_type,
-                               feature_subtype)) %>%
+                               feature_subtype),
+               detail = ifelse(feature_subtype %in% "other",
+                               paste0(feature_type, " (other)"),
+                               detail)) %>%
         group_by(detail) %>%
         summarise(issue_count = n()) %>%
         top_n(5) %>%

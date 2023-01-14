@@ -46,8 +46,8 @@ wrm <- rbind(hazard,
   mutate(date = as.POSIXct(date/1000, origin="1970-01-01 00:00:00")) %>%
   rowwise() %>%
   mutate(
-    lon = geometry[1],
-    lat = geometry[2],
+    x = geometry[1],
+    y = geometry[2],
     feature_subtype = ifelse(feature_subtype %in% "vehicle turning head-on",
                              "vehicle head-on",
                              feature_subtype)) %>%
@@ -75,9 +75,13 @@ map_mode <- "Map extent"
 # spatial data (city extents in geographic projection)
 geographic_presets <- st_read("data/geographic_presets.gpkg")
 
+# test
+# geographic_presets <- st_read("visualize_wrm_app/data/geographic_presets.gpkg")
+
 extents <- c("All reports",
              "Map extent",
-             geographic_presets$name)
+             "Canada", # put the national extent at the top of the list
+             sort(geographic_presets$name[-which(geographic_presets$name %in% "Canada")]))
 
 
 # for dates: how many days ago were reports?
@@ -100,12 +104,12 @@ wrm$doy <- format(wrm$date, "%j") %>%
 wrm$days_since_report <- days_since(wrm$date)
 
 wrm_spatial <- wrm %>%
-  st_as_sf(coords = c("lon", "lat"),
+  st_as_sf(coords = c("x", "y"),
            crs = pseudo_mercator) %>%
   st_transform(geographic_projection)
 
-wrm_spatial$lat <- unlist(map(wrm_spatial$geometry,1))
-wrm_spatial$lon <- unlist(map(wrm_spatial$geometry,2))
+wrm_spatial$lon <- unlist(map(wrm_spatial$geometry, 1))
+wrm_spatial$lat <- unlist(map(wrm_spatial$geometry, 2))
 
 # descriptions for leaflet map
 wrm_spatial$descriptions <- paste0("<b>",stringr::str_to_title(wrm_spatial$type),": </b>", 
